@@ -1,0 +1,23 @@
+databases:
+  - name: todo19
+    plan: free
+    databaseName: todo19
+    user: nahian19
+
+services:
+  - type: web
+    plan: free
+    name: todo19
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "python -m gunicorn mysite.asgi:application -k uvicorn.workers.UvicornWorker"
+    
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: todo19
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 4
