@@ -14,7 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -67,7 +67,8 @@ WSGI_APPLICATION = 'Todo_List.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL')
+        default='postgresql://nahian19:1MMWhQqnuvZvR5X5zkUma2WQGDUrVlMP@dpg-cqp4qeaj1k6c73dd4rfg-a/todo19',
+        conn_max_age=600
     )
 }
 
