@@ -5,43 +5,27 @@
             "src": "Todo_List/wsgi.py",
             "use": "@vercel/python",
             "config": {
-                "maxLambdaSize": "50mb"
+                "maxLambdaSize": "15mb",
+                "runtime": "python3.12"
             }
         },
         {
-            "src": "manage.py",
-            "use": "@vercel/python",
+            "src": "build_files.sh",
+            "use": "@vercel/static-build",
             "config": {
-                "maxLambdaSize": "50mb",
-                "buildCommand": "python manage.py collectstatic --noinput && python manage.py migrate"
+                "distDir": "staticfiles"
             }
         }
     ],
     "routes": [
         {
-            "src": "/static/(.*)",
-            "dest": "/static/$1"
-        },
-        {
-            "src": "/media/(.*)",
-            "dest": "/media/$1"
+            "src": "static/(.*)",
+            "dest": "static/$1"
         },
         {
             "src": "/(.*)",
             "dest": "Todo_List/wsgi.py"
         }
     ],
-    "env": {
-        "DJANGO_SETTINGS_MODULE": "Todo_List.settings",
-        "SECRET_KEY": "$&)@nl=e0n+uc$bim$(4@sjprrbi&o#2rzlxec_e_z$#sc&_^=",
-        "FERNET_KEY": "POjF5PlLCr68ypah3QstZni8IbT5Iby4DFI1UB8oDIo=",
-        "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
-        "EMAIL_HOST": "smtp.gmail.com",
-        "EMAIL_PORT": "587",
-        "EMAIL_USE_TLS": "True",
-        "EMAIL_HOST_USER": "rokeyashilpi.19@gmail.com",
-        "EMAIL_HOST_PASSWORD": "rhqi pbjh hedt sasy",
-        "DEBUG": "False",
-        "ALLOWED_HOSTS": "*.vercel.app"
-    }
+    "outputDirectory": "staticfiles"
 }
