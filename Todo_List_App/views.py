@@ -22,7 +22,6 @@ from django.db.models import Case, CharField, F, Q, Value, When
 from django.http import (Http404, HttpResponse, HttpResponseForbidden,
                         JsonResponse)
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import get_template
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
@@ -34,7 +33,10 @@ from django.views.decorators.http import require_POST
 from PIL import Image
 from Todo_List_App.models import (Category, CustomUser, Notifications,
                                 PasswordResetRequest, Profile, Task)
-from weasyprint import HTML
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 
 from .forms import (CustomSetPasswordForm, PasswordChangeForm, ProfileForm,
                     SignUpForm)
@@ -1189,39 +1191,104 @@ class ExportPDF(View):
         
         tasks = Task.objects.filter(user=user)
         profile = Profile.objects.filter(user=user).first()
-        template = get_template('generatePDF.html')
 
-        profile_picture_base64 = None
-        if profile and profile.profilePicture:
-            profile_picture_path = default_storage.path(profile.profilePicture.name)
-            with open(profile_picture_path, 'rb') as f:
-                image = Image.open(f)
-                buffered = BytesIO()
-                image.save(buffered, format="PNG")
-                profile_picture_base64 = base64.b64encode(buffered.getvalue()).decode()
-
-        context = {
-            'user': user,
-            'tasks': tasks,
-            'profile': profile,
-            'profile_picture_base64': profile_picture_base64,
-        }
-
+        # Prepare PDF response
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="tasks.pdf"'
 
-        html_content = template.render(context)
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
 
-        pdf_file = BytesIO()
-        HTML(string=html_content).write_pdf(pdf_file)
+        elements = []
+        styles = getSampleStyleSheet()
+        style_normal = styles['Normal']
 
-        response.write(pdf_file.getvalue())
-        pdf_file.close()
+        # Add Title
+        title = Paragraph(f"Task Report of || {user.username} ||", styles['Title'])
+        elements.append(title)
+
+        # Handle profile picture
+        profile_picture_base64 = None
+        if profile and profile.profilePicture:
+            try:
+                profile_picture_path = default_storage.path(profile.profilePicture.name)
+                with open(profile_picture_path, 'rb') as f:
+                    image = Image.open(f)
+                    buffered = BytesIO()
+                    image.save(buffered, format="PNG")
+                    profile_picture_base64 = base64.b64encode(buffered.getvalue()).decode()
+            except Exception as e:
+                print(f"Error processing profile picture: {e}")
+
+        if profile_picture_base64:
+            from reportlab.lib.units import inch
+            img_data = base64.b64decode(profile_picture_base64)
+            img_path = BytesIO(img_data)
+            profile_image = Image.open(img_path)
+            profile_image.save('profile_image.png')
+            elements.append(Paragraph(f'<img src="profile_image.png" width="200" height="200"/>', style_normal))
+
+        # Add profile information
+        profile_info = [
+            ['Username:', user.username],
+            ['Full Name:', f"{user.first_name} {user.last_name}"],
+            ['Email:', user.email],
+            ['Phone:', user.phone if user.phone else 'Not Available'],
+            ['Address:', user.address if user.address else 'Not Available']
+        ]
+
+        profile_table = Table(profile_info)
+        profile_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(profile_table)
+
+        # Add total tasks
+        total_tasks = Paragraph(f"<strong>Total Tasks: {tasks.count()}</strong>", style_normal)
+        elements.append(total_tasks)
+
+        # Add tasks table
+        task_data = []
+        for task in tasks:
+            task_data.append([
+                task.taskTitle,
+                task.category.name,
+                task.createdDate.strftime("%d-%m-%Y %I:%M %p"),
+                task.dueDate.strftime("%d-%m-%Y %I:%M %p") if task.dueDate else 'N/A',
+                task.completedDate.strftime("%d-%m-%Y %I:%M %p") if task.completedDate else 'N/A',
+                task.get_important_display(),
+                task.get_status_display(),
+                task.description
+            ])
+
+        task_table = Table(task_data, colWidths=[100] * len(task_data[0]))
+        task_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(task_table)
+
+        doc.build(elements)
+
+        # Save the PDF to response
+        pdf = buffer.getvalue()
+        buffer.close()
+        response.write(pdf)
+
+        # Log export event
         notifications = Notifications (
-            name = 'Tasks Exported to PDF',
-            date = timezone.now(),
-            user = user,
+            name='Tasks Exported to PDF',
+            date=timezone.now(),
+            user=user,
         )
         notifications.notificationsCount += 1
         notifications.save()
+
         return response
