@@ -7,6 +7,14 @@
             "config": {
                 "maxLambdaSize": "50mb"
             }
+        },
+        {
+            "src": "manage.py",
+            "use": "@vercel/python",
+            "config": {
+                "maxLambdaSize": "50mb",
+                "buildCommand": "python manage.py collectstatic --noinput && python manage.py migrate"
+            }
         }
     ],
     "routes": [
@@ -33,7 +41,7 @@
         "EMAIL_USE_TLS": "True",
         "EMAIL_HOST_USER": "rokeyashilpi.19@gmail.com",
         "EMAIL_HOST_PASSWORD": "rhqi pbjh hedt sasy",
-        "DEBUG": "True",
+        "DEBUG": "False",
         "ALLOWED_HOSTS": "*.vercel.app"
     }
 }
