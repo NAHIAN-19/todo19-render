@@ -42,7 +42,4 @@ urlpatterns = [
     # AJAX/utility URLs
     path('validate-field/', views.validate_field, name='validate_field'),
     path('invalidate-session/', views.invalidate_session, name='invalidate_session'),
-]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -47,7 +47,14 @@ CustomUser = get_user_model()
 ############## this function changes the status of the task of that user
 def update_task_status():
     now = timezone.now()
-    tasks_queryset = Task.objects.filter(status=Task.PENDING)
+    try:
+        tasks = Task.objects.all()
+        if tasks.count() > 0:
+            tasks_queryset = Task.objects.filter(status=Task.PENDING)
+        else:
+            return
+    except:
+        return
     tasks_queryset = tasks_queryset.annotate(
         task_status=Case(
             When(dueDate__lt=now, then=Value(Task.OVERDUE)),
